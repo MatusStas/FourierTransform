@@ -31,8 +31,11 @@ class MatplotlibWidget(QWidget):
         
         # canvas setup
         self.canvas.axis = self.canvas.figure.add_subplot(111)
-        self.canvas.axis.set_xlim([-10, 10])
-        self.canvas.axis.set_ylim([-10, 10])
+        self.canvas.figure.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0, hspace=0)
+        self.canvas.axis.spines['top'].set_visible(False)
+        self.canvas.axis.spines['left'].set_visible(False)
+        self.canvas.axis.set_xlim(AXIS_LIMIT)
+        self.canvas.axis.set_ylim(AXIS_LIMIT)
 
         # variables
         self.pressed = False
@@ -60,8 +63,8 @@ class MatplotlibWidget(QWidget):
 
             # clear and reload subplot
             self.canvas.axis.clear()
-            self.canvas.axis.set_xlim([-10, 10])
-            self.canvas.axis.set_ylim([-10, 10])
+            self.canvas.axis.set_xlim(AXIS_LIMIT)
+            self.canvas.axis.set_ylim(AXIS_LIMIT)
             self.canvas.draw()
 
         self.pressed = True
@@ -89,31 +92,55 @@ class MatplotlibWidget(QWidget):
         self.N = len(self.arr_drawing)
 
         if len(self.arr_drawing) > 0:
-            self.arr_drawing_complex = [complex(coordinates[0], coordinates[1]) for coordinates in self.arr_drawing]
+            self.run()
+            # self.arr_drawing_complex = [complex(coordinates[0], coordinates[1]) for coordinates in self.arr_drawing]
             
-            ft = FourierTransform(self.arr_drawing_complex)
-            ft.toEpicycles()
+            # ft = FourierTransform(self.arr_drawing_complex)
+            # ft.toEpicycles()
             
-            self.arr_radius = []
-            for i in ft.arr_epicycles:
-                self.arr_radius.append(i['amplitude'])
-            self.arr_radius = np.array([self.arr_radius])
+            # self.arr_radius = []
+            # for i in ft.arr_epicycles:
+            #     self.arr_radius.append(i['amplitude'])
+            # self.arr_radius = np.array([self.arr_radius])
 
-            time = np.linspace(0,2*pi,endpoint = False, num=len(ft.arr_epicycles))
+            # time = np.linspace(0,2*pi,endpoint = False, num=len(ft.arr_epicycles))
             
-            self.xxx = []
-            for dt in time:
-                self.xxx.append(ft.getPoint(dt))
+            # self.xxx = []
+            # for dt in time:
+            #     self.xxx.append(ft.getPoint(dt))
 
-            self.animation = animation.FuncAnimation(
-                                self.canvas.figure,
-                                self.animate,
-                                init_func=self.init,
-                                interval=25,
-                                blit=True)
 
+
+    def run(self):        
+        self.animation = animation.FuncAnimation(
+                            self.canvas.figure,
+                            self.animate,
+                            init_func=self.init,
+                            interval=25,
+                            blit=True)
 
     def init(self):
+
+
+        # calculate center
+        self.arr_drawing_complex = [complex(coordinates[0], coordinates[1]) for coordinates in self.arr_drawing]
+        self.N = len(self.arr_drawing_complex)
+
+
+        ft = FourierTransform(self.arr_drawing_complex)
+        ft.toEpicycles()
+        
+        self.arr_radius = []
+        for i in ft.arr_epicycles:
+            self.arr_radius.append(i['amplitude'])
+        self.arr_radius = np.array([self.arr_radius])
+
+        time = np.linspace(0,2*pi,endpoint = False, num=len(ft.arr_epicycles))
+        
+        self.xxx = []
+        for dt in time:
+            self.xxx.append(ft.getPoint(dt))
+
         # calculate radius in pixels
         rr_pix = (self.canvas.axis.transData.transform(np.vstack([self.arr_radius, self.arr_radius]).T) - self.canvas.axis.transData.transform(np.vstack([np.zeros(self.N), np.zeros(self.N)]).T))
         rpix, _ = rr_pix.T

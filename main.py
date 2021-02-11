@@ -36,7 +36,42 @@ class PlaygroundWindow(QDialog):
 
 
     def getText(self):
-        print(self.textEdit.toPlainText())
+        self.MatplotlibWidget.arr_drawing = []
+        text = self.textEdit.toPlainText()
+        text = text.split('\n')
+
+        if text[-1] == '':
+            text.pop()
+
+        arr_temp = []
+        for coordinates in text:
+            x,y = list(map(float, coordinates.strip().split(',')))
+            arr_temp.append([x,y])
+
+        max_x = max(arr_temp, key=lambda x: x[0])[0]
+        max_y = max(arr_temp, key=lambda x: x[1])[1]
+        min_x = min(arr_temp, key=lambda x: x[0])[0]
+        min_y = min(arr_temp, key=lambda x: x[1])[1]
+
+        dx = (max_x-min_x)/2+min_x
+        dy = (max_y-min_y)/2+min_y
+
+        # update coordinates relative to center 0,0
+        arr_drawing = []
+        for coordinates in arr_temp:
+            x,y = coordinates
+            arr_drawing.append([x-dx,y-dy])
+
+
+        LIMIT = max((max_x-min_x)/2,(max_y-min_y)/2)
+        offset = LIMIT*0.5
+
+        # set axes borders
+        self.MatplotlibWidget.canvas.axis.set_xlim([-LIMIT-offset,LIMIT+offset])
+        self.MatplotlibWidget.canvas.axis.set_ylim([-LIMIT-offset,LIMIT+offset])
+
+        self.MatplotlibWidget.arr_drawing = arr_drawing
+        self.MatplotlibWidget.run()
 
 class SecondWindow(QDialog):
     
@@ -95,7 +130,3 @@ if __name__ == '__main__':
     widget.show()
     sys.exit(app.exec_())
 
-
-# To Do
-# - read points from textEdit
-# - generate points from radio button (random function)
