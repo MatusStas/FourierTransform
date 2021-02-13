@@ -32,8 +32,7 @@ class PlaygroundWindow(QDialog):
 
 
     def onValueChanged(self):
-        print(self.horizontalSlider.value())
-
+        pass
 
     def getText(self):
         self.MatplotlibWidget.arr_drawing = []
@@ -62,14 +61,13 @@ class PlaygroundWindow(QDialog):
             x,y = coordinates
             arr_drawing.append([x-dx,y-dy])
 
-
+        # set axes borders
         LIMIT = max((max_x-min_x)/2,(max_y-min_y)/2)
         offset = LIMIT*0.5
-
-        # set axes borders
         self.MatplotlibWidget.canvas.axis.set_xlim([-LIMIT-offset,LIMIT+offset])
         self.MatplotlibWidget.canvas.axis.set_ylim([-LIMIT-offset,LIMIT+offset])
 
+        # self.MatplotlibWidget.arr_drawing = arr_drawing
         self.MatplotlibWidget.arr_drawing = arr_drawing
         self.MatplotlibWidget.run()
 

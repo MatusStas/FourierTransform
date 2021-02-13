@@ -24,9 +24,9 @@ class FourierTransform:
     def getPoint(self,dt):
         x = 0
         y = 0
-        temp = []
+        temp = np.zeros((1,2))
         for epicycle in self.arr_epicycles:
             x += epicycle['amplitude']*cos(epicycle['frequency']*dt+epicycle['phase'])
             y += epicycle['amplitude']*sin(epicycle['frequency']*dt+epicycle['phase'])
-            temp.append([round(x, 5),round(y, 5)])
+            temp = np.append(temp, [[round(x, 5),round(y, 5)]], axis=0)
         return temp

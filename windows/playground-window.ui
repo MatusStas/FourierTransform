@@ -45,8 +45,11 @@
      <height>20</height>
     </rect>
    </property>
+   <property name="minimum">
+    <number>1</number>
+   </property>
    <property name="maximum">
-    <number>0</number>
+    <number>1</number>
    </property>
    <property name="orientation">
     <enum>Qt::Horizontal</enum>
@@ -57,16 +60,16 @@
     <rect>
      <x>740</x>
      <y>20</y>
-     <width>151</width>
-     <height>171</height>
+     <width>291</width>
+     <height>601</height>
     </rect>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_2">
    <property name="geometry">
     <rect>
-     <x>800</x>
-     <y>200</y>
+     <x>940</x>
+     <y>630</y>
      <width>89</width>
      <height>25</height>
     </rect>

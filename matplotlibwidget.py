@@ -12,7 +12,8 @@ from fouriertransform import FourierTransform
 import numpy as np
 from math import pi
 
-
+import threading
+import time
 
 class MatplotlibWidget(QWidget):
     
@@ -40,12 +41,17 @@ class MatplotlibWidget(QWidget):
         # variables
         self.pressed = False
         self.plotted = False
-        self.arr_drawing = []
         self.arr_drawing_complex = []
         self.arr_radius = []
-        self.N = None
-        self.point_drawn = self.canvas.axis.scatter([],[], c='#eb4034', s=1)
+        self.N = 0
+        self.line_draw, = self.canvas.axis.plot([], [], c='#eb4034', linewidth=1)
+        self.arr_drawing = np.empty((1,2))
+        self.time = []
+        self.xxx2 = []
+        self.check = []
+        self.is_running = False
 
+        
         # listeners
         self.canvas.mpl_connect('button_press_event', self.on_press)
         self.canvas.mpl_connect('motion_notify_event', self.on_motion)
@@ -53,13 +59,14 @@ class MatplotlibWidget(QWidget):
 
 
     def on_press(self, event):
-        if len(self.arr_drawing) > 0:
+        if self.arr_drawing[1:].size > 0:
             self.animation._stop()
 
         if self.plotted:
-            # reset
+            # reset variables
             self.plotted = False
-            self.arr_drawing = []
+            self.arr_drawing = np.empty((1,2))
+            self.N = 0
 
             # clear and reload subplot
             self.canvas.axis.clear()
@@ -74,44 +81,33 @@ class MatplotlibWidget(QWidget):
         if self.pressed:
             self.plotted = True
 
-            # reset slider
-            if self.CanvasWindow.horizontalSlider.value() > 0:
-                self.CanvasWindow.horizontalSlider.setMaximum(0)
-
             # plot drawing points 
-            self.arr_drawing.append([event.xdata, event.ydata])
-            self.point_drawn.set_offsets(self.arr_drawing)
-            self.canvas.axis.draw_artist(self.point_drawn)
+            self.arr_drawing = np.append(self.arr_drawing, [[event.xdata, event.ydata]], axis=0)
+            self.line_draw.set_data(self.arr_drawing[1:,0],self.arr_drawing[1:,1])
+            self.canvas.axis.draw_artist(self.line_draw)
             self.canvas.blit(self.canvas.axis.bbox)
             self.canvas.flush_events()
 
 
     def on_release(self, event):
         self.pressed = False
-        self.CanvasWindow.horizontalSlider.setMaximum(len(self.arr_drawing))
-        self.N = len(self.arr_drawing)
+        self.line_draw.set_xdata([])
+        self.line_draw.set_ydata([])
 
         if len(self.arr_drawing) > 0:
             self.run()
-            # self.arr_drawing_complex = [complex(coordinates[0], coordinates[1]) for coordinates in self.arr_drawing]
-            
-            # ft = FourierTransform(self.arr_drawing_complex)
-            # ft.toEpicycles()
-            
-            # self.arr_radius = []
-            # for i in ft.arr_epicycles:
-            #     self.arr_radius.append(i['amplitude'])
-            # self.arr_radius = np.array([self.arr_radius])
-
-            # time = np.linspace(0,2*pi,endpoint = False, num=len(ft.arr_epicycles))
-            
-            # self.xxx = []
-            # for dt in time:
-            #     self.xxx.append(ft.getPoint(dt))
 
 
+    def getSizes(self):
+        arr_radius = np.array([item['amplitude'] for item in self.ft.arr_epicycles])
+        rr_pix = (self.canvas.axis.transData.transform(np.vstack([arr_radius, arr_radius]).T) - self.canvas.axis.transData.transform(np.vstack([np.zeros(self.N), np.zeros(self.N)]).T))
+        rpix, _ = rr_pix.T
+        size_pt = (2*rpix/DPI*72)**2
+        return size_pt
 
-    def run(self):        
+
+    def run(self):
+        self.is_running = True
         self.animation = animation.FuncAnimation(
                             self.canvas.figure,
                             self.animate,
@@ -119,71 +115,41 @@ class MatplotlibWidget(QWidget):
                             interval=25,
                             blit=True)
 
+
     def init(self):
-
-
-        # calculate center
-        self.arr_drawing_complex = [complex(coordinates[0], coordinates[1]) for coordinates in self.arr_drawing]
+        self.arr_drawing_complex = [complex(coordinates[0], coordinates[1]) for coordinates in self.arr_drawing[1:]]
         self.N = len(self.arr_drawing_complex)
+        self.CanvasWindow.horizontalSlider.setMaximum(self.N)
+        self.CanvasWindow.horizontalSlider.setValue(self.N)
 
+        self.ft = FourierTransform(self.arr_drawing_complex)
+        self.ft.toEpicycles()
 
-        ft = FourierTransform(self.arr_drawing_complex)
-        ft.toEpicycles()
+        self.time = np.linspace(0,2*pi,endpoint = False, num=self.N)        
+
+        self.xxx2 = np.array([self.ft.getPoint(dt) for dt in self.time])
+
+        self.circle = self.canvas.axis.scatter([],[], fc='None', ec='#9ac7e4', lw=1)
+        self.circle.set_sizes(self.getSizes())
+
+        self.line_connect, = self.canvas.axis.plot([], [], c='#9ac7e4', lw=1)
+
+        self.line_plot, = self.canvas.axis.plot([], [], c='#4c6bd5', lw=2)
         
-        self.arr_radius = []
-        for i in ft.arr_epicycles:
-            self.arr_radius.append(i['amplitude'])
-        self.arr_radius = np.array([self.arr_radius])
+        self.line_plot_all, = self.canvas.axis.plot([], [], c='#4c6bd5', lw=0.5)
 
-        time = np.linspace(0,2*pi,endpoint = False, num=len(ft.arr_epicycles))
-        
-        self.xxx = []
-        for dt in time:
-            self.xxx.append(ft.getPoint(dt))
-
-        # calculate radius in pixels
-        rr_pix = (self.canvas.axis.transData.transform(np.vstack([self.arr_radius, self.arr_radius]).T) - self.canvas.axis.transData.transform(np.vstack([np.zeros(self.N), np.zeros(self.N)]).T))
-        rpix, _ = rr_pix.T
-        size_pt = (2*rpix/DPI*72)**2
-
-        self.circle = self.canvas.axis.scatter([],[],
-                        facecolor='None',
-                        edgecolor='#9ac7e4',
-                        linewidth=1,
-                        s=0)
-
-        self.circle.set_sizes(size_pt)
-
-        self.line, = self.canvas.axis.plot([], [],
-                        c='#9ac7e4',
-                        linewidth=1)
-
-        self.point_plotted = self.canvas.axis.scatter([],[], c='#4c6bd5', s=5)
-        return [self.line, self.circle, self.point_plotted]
+        return [self.circle, self.line_connect, self.line_plot, self.line_plot_all]
 
 
     def animate(self,i):
-        # print(i)
-        self.point_drawn.set_offsets(self.arr_drawing)
+        s = self.CanvasWindow.horizontalSlider.value()+1
 
-        # circles
-        temp = list(self.xxx[i%self.N][:-1])
-        temp.insert(0, [0,0])
-        temp = np.array(temp)
-        self.circle.set_offsets(temp)
+        self.circle.set_offsets(self.xxx2[:,:s][i%self.N,:-1])
 
-        self.point_plotted.set_offsets(self.arr_drawing[:i%self.N+1])
+        self.line_connect.set_data(self.xxx2[:,:s][i%self.N,:,0],self.xxx2[:,:s][i%self.N,:,1])
 
-        # tempx = [[1,2,3],[2,3,5]]
-        # tempy = [[2,3,5],[1,2,3]]
-        tempx = []
-        tempy = []
-        for j in temp:
-            x,y = j
-            tempx.append(x)
-            tempy.append(y)
+        self.line_plot.set_data(self.xxx2[:,:s][:i%self.N,-1,0],self.xxx2[:,:s][:i%self.N,-1,1])
+        
+        self.line_plot_all.set_data(self.xxx2[:,:s][:,-1,0],self.xxx2[:,:s][:,-1,1])
 
-        self.line.set_xdata(tempx)
-        self.line.set_ydata(tempy)
-
-        return [self.point_drawn, self.line, self.circle, self.point_plotted]
+        return [self.circle, self.line_connect, self.line_plot, self.line_plot_all]
